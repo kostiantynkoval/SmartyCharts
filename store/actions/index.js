@@ -49,32 +49,18 @@ export const login = (data) => async dispatch => {
 
 export const logout = (message = '') => dispatch => dispatch(actionSucceed(LOGOUT_SUCCESS, message))
 
-export const getSkills = () => (dispatch, getState) => {
-  dispatch(actionRequested(GET_JOBS_REQUEST))
-  const { network: { isConnected }, auth: { token } } = getState()
+export const getSkills = id => (dispatch, getState) => {
+  dispatch(actionRequested(GET_SKILLS_REQUEST))
+  const { auth: { token } } = getState()
 
-  if(isConnected) {
     axiosInstance
-      .get(`/staff/tasks`, {headers: { Authorization: token }})
+      .get(`/api/user/${id}/skills`, {headers: { Authorization: token }})
       .then(res => {
-        dispatch(actionSucceed(GET_JOBS_SUCCESS, res.data))
+        dispatch(actionSucceed(GET_SKILLS_SUCCESS, res.data))
       })
       .catch(err => {
-        if (err.response.data.error && [15,20,16,4].includes(err.response.data.error.msg)) {
-          dispatch(actionFailed(GET_JOBS_FAIL, 'Ошибка авторизации'))
-          return dispatch(logout('Ошибка авторизации. Возможно ваша сессия истекла. Пожалуйста авторизируйтесь заново'))
-        }
-        else if (err.message === 'Network Error') {
-          dispatch(actionFailed(GET_JOBS_FAIL, 'Ошибка соединения с сервером. Попробуйте позже. Разнарядки будут взяты из памяти устройства'))
-        }
-        else {
-          dispatch(actionFailed(GET_JOBS_FAIL, 'Неизвестная ошибка. Попробуйте позже. Разнарядки будут взяты из памяти устройства'))
-        }
+        dispatch(actionFailed(GET_SKILLS_FAIL, `Error: ${err}`))
       })
-
-  } else {
-    return dispatch(actionFailed(GET_JOBS_FAIL, "Отсутствует связь с интернетом. Разнарядки будут взяты из памяти устройства"))
-  }
 }
 
 // Actions

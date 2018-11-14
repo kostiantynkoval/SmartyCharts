@@ -11,77 +11,97 @@ import {
 } from 'react-native';
 import {connect} from 'react-redux'
 import {getSkills} from "../store/actions/index";
-import * as shape from 'd3-shape'
-import { StackedAreaChart, StackedBarChart, YAxis, Grid } from 'react-native-svg-charts'
+import { StackedAreaChart, StackedBarChart, YAxis, Grid, XAxis } from 'react-native-svg-charts'
 import {withAuth} from '../hoc/isAuthenticated'
 
-const colors = [ '#33691E', '#689F38' ]
-const data = [
-  {
-      desirable: {
-        value: 3840,
-        svg: {
-          onPress: () => console.log('onPress => 0:broccoli:3840'),
-        },
-      },
-      present: {
-        value: 1920,
-        svg: {
-          onPress: () => console.log('onPress => 0:celery:1920'),
-        },
-      },
-  },
-  {
-      desirable: {
-        value: 2840,
-        svg: {
-          onPress: () => console.log('onPress => 1:broccoli:2840'),
-        },
-      },
-      present: {
-        value: 2220,
-        svg: {
-          onPress: () => console.log('onPress => 1:celery:2220'),
-        },
-      },
-  },
-]
+function parseJwt (token) {
+  const base64Url = token.split('.')[1];
+  console.log('base64Url', base64Url);
+  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+  console.log('base64', base64);
+  return JSON.parse(window.atob(base64));
+}
 
-const keys = [ 'desirable', 'present' ]
+const getData = (data) => {
+  const requiredData = data
+    .filter(item => parseInt(item.mark) > 9 )
+    .map((item, i) => ({
+      title: item.skill.title,
+      mark: item.mark - item.disposition,
+      disposition: item.disposition,
+    }))
+  console.log('requiredData', requiredData)
+
+  return requiredData
+}
+
+const colors = [ 'rgba(0,100,0,0.8)', 'rgba(139,0,0,0.8)' ]
+
+const keys = [ 'mark', 'disposition' ]
+
+const yAxisData = [0,1,2,3,4,5,6,7,8,9]
 
 class SkillsScreen extends React.Component {
   static navigationOptions = {
     header: null,
   };
 
-  constructor(props) {
-    super(props)
-    AsyncStorage.clear()
-  }
-
   componentDidMount() {
-    this.props.getSkills()
+    this.parsedUser = parseJwt(this.props.token)
+    console.log('parsedUser', this.parsedUser);
+    this.props.getSkills(this.parsedUser.id)
   }
 
   render() {
-    return (
-      <StackedBarChart
-        style={{ height: 600 }}
-        colors={ colors }
-        contentInset={{ top: 50, bottom: 50 }}
-        data={ data }
-        keys={ keys }
-        valueAccessor={ ({ item, key }) => item[ key ].value }
-      >
-        <Grid />
-      </StackedBarChart>
-    )
+    if (this.props.isLoading) {
+      return (
+        <View><Text>Loading...</Text></View>
+      )
+    } else {
+      const dataP = getData(this.props.skills)
+      console.log('dataP', dataP)
+      return (
+        <View style={styles.container}>
+          <YAxis
+            data={ yAxisData }
+            contentInset={{ top: 20, bottom: 20 }}
+            svg={{
+              fill: 'black',
+              fontSize: 10,
+            }}
+            numberOfTicks={ 10 }
+          />
+          <View style={{ flex: 1 }}>
+            <StackedBarChart
+              style={ { flex: 1 } }
+              keys={ keys }
+              colors={ colors }
+              data={ dataP }
+              showGrid={ true }
+              contentInset={{ top: 20, bottom: 20 }}
+              spacingInner={0.4}
+              spacingOuter={0.4}
+            >
+              <Grid/>
+            </StackedBarChart>
+            <XAxis
+              data={ dataP }
+              contentInset={{ top: 20, bottom: 20 }}
+              formatLabel={ (value, index) => { console.log('value', index, value); return index} }
+            />
+          </View>
+        </View>
+      )
+    }
+
   }
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    height: 400,
+    flexDirection: 'row',
+    padding: 20,
     ...Platform.select({
       ios: {
         backgroundColor: '#fff',
@@ -95,9 +115,11 @@ const styles = StyleSheet.create({
 
 export default withAuth(connect(
   store => ({
-    skills: store.data.skills
+    skills: store.data.skills,
+    token: store.auth.token,
+    isLoading: store.data.isLoading,
   }),
   dispatch => ({
-    getSkills: () => dispatch(getSkills())
+    getSkills: id => dispatch(getSkills(id))
   })
 )(SkillsScreen))
